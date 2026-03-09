@@ -19,9 +19,9 @@ token_url = "https://accounts.iqmetrix.net/v1/oauth2/token"
 auth_payload = {
     "grant_type": "password",
     "client_id": "Kindling.SelfIntegration",
-    "client_secret": "58gKwEAG3qNRnTyetsSnefzu",
+    "client_secret": "",
     "username": "SelfIntegration.COVA.APIUser.Kindling",
-    "password": "Kindling2024!",
+    "password": "!",
 }
 
 base_url = "https://api.covasoft.net/dataplatform"
