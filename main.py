@@ -21,7 +21,7 @@ auth_payload = {
     "client_id": "Kindling.SelfIntegration",
     "client_secret": "",
     "username": "SelfIntegration.COVA.APIUser.Kindling",
-    "password": "!",
+    "password": "",
 }
 
 base_url = "https://api.covasoft.net/dataplatform"
