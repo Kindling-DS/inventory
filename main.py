@@ -167,4 +167,11 @@ while True:
         print(f"{datetime.now()} - No data retrieved")
 
     # ---------- Run Every 24 Hours ----------
-    time.sleep(86400)
+    est = pytz.timezone("US/Eastern")
+    now = datetime.now(est)
+    next_run = now.replace(hour=6, minute=0, second=0, microsecond=0)
+    if now >= next_run:
+        next_run = next_run + pd.Timedelta(days=1)
+    sleep_seconds = (next_run - now).total_seconds()
+    print(f"Sleeping for {sleep_seconds/3600:.2f} hours until next 6 AM EST\n")
+    time.sleep(sleep_seconds)
