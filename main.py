@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 # ---------- MySQL Configuration ----------
 mysql_user = "kindling1"
-mysql_password = ""
+mysql_password = "Kindling2025!"
 mysql_host = "192.168.88.193"
 mysql_port = 3306
 mysql_db = "kindling1"
@@ -21,24 +21,14 @@ engine = create_engine(
 
 # ---------- Safe SQL Writer ----------
 def safe_to_sql(df, table):
-
     retries = 3
-
     for attempt in range(retries):
         try:
             with engine.begin() as conn:
-                df.to_sql(
-                    table,
-                    conn,
-                    if_exists="append",
-                    index=False
-                )
+                df.to_sql(table, conn, if_exists="append", index=False)
             return True
-
         except Exception as e:
-
             print("MySQL write error:", e)
-
             if attempt < retries - 1:
                 print("Retrying MySQL connection...")
                 engine.dispose()
@@ -46,16 +36,14 @@ def safe_to_sql(df, table):
             else:
                 raise e
 
-
 # ---------- API Configuration ----------
 token_url = "https://accounts.iqmetrix.net/v1/oauth2/token"
-
 auth_payload = {
     "grant_type": "password",
     "client_id": "Kindling.SelfIntegration",
-    "client_secret": "",
+    "client_secret": "58gKwEAG3qNRnTyetsSnefzu",
     "username": "SelfIntegration.COVA.APIUser.Kindling",
-    "password": "",
+    "password": "Kindling2024!",
 }
 
 base_url = "https://api.covasoft.net/dataplatform"
@@ -82,36 +70,24 @@ location_mapping = {
 page_size = 500
 max_records = 1000000
 
-
 # ---------- Main Loop ----------
 while True:
-
     try:
-
         # ---------- Get Token ----------
         token_response = requests.post(token_url, data=auth_payload)
-
         if token_response.status_code != 200:
             print("Token failure:", token_response.text)
             time.sleep(3600)
             continue
 
         access_token = token_response.json()["access_token"]
-
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
-
+        headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
         all_products = []
 
         # ---------- Loop Locations ----------
         for loc_id in location_ids:
-
             skip = 0
-
             while True:
-
                 payload = {
                     "LocationId": loc_id,
                     "IncludeProductSkusAndUpcs": True,
@@ -123,7 +99,6 @@ while True:
                 }
 
                 response = requests.post(api_url, headers=headers, json=payload)
-
                 if response.status_code != 200:
                     print("API failure:", response.text)
                     break
@@ -135,44 +110,40 @@ while True:
                     break
 
                 for product in products:
+                    # Main product fields (default NA)
+                    product_name = product.get("Name", "NA")
+                    sku = product.get("CatalogSku", "NA")
+                    classification = product.get("ClassificationName", "NA")
+                    unit_type = product.get("UnitType", "NA")
 
-                    product_name = product.get("Name")
-                    sku = product.get("CatalogSku")
-                    classification = product.get("ClassificationName")
+                    # Supplier SKUs list
+                    supplier_list = product.get("SupplierSkus") or [{"SKU": "NA", "Supplier": "NA"}]
 
-                    vendor = product.get("PrimaryVendor") or {}
+                    # Availability list
+                    availability_list = product.get("Availability") or [{}]
 
-                    supplier = vendor.get("Name")
-                    supplier_sku = vendor.get("VendorSku")
-
-                    availability = product.get("Availability") or []
-
-                    for av in availability:
-
-                        if not av:
-                            continue
-
-                        location_name = location_mapping.get(
-                            str(av.get("LocationId")), "Unknown"
-                        )
-
+                    for av in availability_list:
+                        location_name = location_mapping.get(str(av.get("LocationId")), "NA")
                         qty = av.get("InStockQuantity", 0)
                         unit_cost = av.get("UnitCost") or 0
 
-                        all_products.append({
+                        for s in supplier_list:
+                            supplier_sku = s.get("SKU", "NA")
+                            supplier_name = s.get("Supplier", "NA")
 
-                            "snapshot_date": datetime.now().date(),
-                            "location": location_name,
-                            "product": product_name,
-                            "classification": classification,
-                            "sku": sku,
-                            "in_stock_qty": qty,
-                            "unit_type": product.get("UnitType"),
-                            "in_stock_cost": qty * unit_cost,
-                            "avg_unit_cost_in_stock": unit_cost,
-                            "supplier": supplier,
-                            "supplier_sku": supplier_sku
-                        })
+                            all_products.append({
+                                "snapshot_date": datetime.now().date(),
+                                "location": location_name,
+                                "product": product_name,
+                                "classification": classification,
+                                "sku": sku,
+                                "in_stock_qty": qty,
+                                "unit_type": unit_type,
+                                "in_stock_cost": qty * unit_cost,
+                                "avg_unit_cost_in_stock": unit_cost,
+                                "supplier": supplier_name,
+                                "supplier_sku": supplier_sku
+                            })
 
                 skip += page_size
                 print("Fetched records:", skip)
@@ -180,39 +151,23 @@ while True:
                 if len(all_products) >= max_records:
                     break
 
-
         # ---------- Save to MySQL ----------
         if all_products:
-
             df = pd.DataFrame(all_products)
-
             safe_to_sql(df, mysql_table)
-
             print(f"{datetime.now()} - Saved {len(df)} rows")
-
         else:
             print(f"{datetime.now()} - No data retrieved")
 
-
     except Exception as e:
-
         print("Pipeline error:", e)
-
         engine.dispose()
-
 
     # ---------- Sleep Until Next 6 AM EST ----------
     now = datetime.now(ZoneInfo("America/New_York"))
-
-    next_run = now.replace(
-        hour=12, minute=15, second=0, microsecond=0
-    )
-
+    next_run = now.replace(hour=12, minute=15, second=0, microsecond=0)
     if now >= next_run:
         next_run += timedelta(days=1)
-
     sleep_seconds = (next_run - now).total_seconds()
-
     print(f"Sleeping {sleep_seconds/3600:.2f} hours until next run\n")
-
     time.sleep(sleep_seconds)
