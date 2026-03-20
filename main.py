@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 # ---------- MySQL Configuration ----------
 mysql_user = "kindling1"
-mysql_password = ""
+mysql_password = "Kindling2025!"
 mysql_host = "192.168.88.193"
 mysql_port = 3306
 mysql_db = "kindling1"
@@ -41,9 +41,9 @@ token_url = "https://accounts.iqmetrix.net/v1/oauth2/token"
 auth_payload = {
     "grant_type": "password",
     "client_id": "Kindling.SelfIntegration",
-    "client_secret": "",
+    "client_secret": "58gKwEAG3qNRnTyetsSnefzu",
     "username": "SelfIntegration.COVA.APIUser.Kindling",
-    "password": "",
+    "password": "Kindling2024!",
 }
 
 base_url = "https://api.covasoft.net/dataplatform"
@@ -154,11 +154,34 @@ while True:
         # ---------- Save to MySQL ----------
         if all_products:
             df = pd.DataFrame(all_products)
-            safe_to_sql(df, mysql_table)
-            print(f"{datetime.now()} - Saved {len(df)} rows")
+        
+            # ---------- Aggregation ----------
+            agg_df = (
+                df.groupby(["snapshot_date", "location", "product"], as_index=False)
+                .agg({
+                    "classification": "first",
+                    "sku": "first",
+                    "unit_type": "first",
+                    "supplier": "first",
+                    "supplier_sku": "first",
+                    "in_stock_qty": "sum",
+                    "in_stock_cost": "sum"
+                })
+            )
+        
+            # ---------- Weighted Avg Cost ----------
+            agg_df["avg_unit_cost_in_stock"] = (
+                agg_df["in_stock_cost"] / agg_df["in_stock_qty"]
+            ).replace([float("inf"), -float("inf")], 0).fillna(0)
+        
+            # ---------- Save ----------
+            safe_to_sql(agg_df, mysql_table)
+        
+            print(f"{datetime.now()} - Saved {len(agg_df)} aggregated rows")
+        
         else:
             print(f"{datetime.now()} - No data retrieved")
-
+            
     except Exception as e:
         print("Pipeline error:", e)
         engine.dispose()
