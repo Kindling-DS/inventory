@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 # ---------- MySQL Configuration ----------
 mysql_user = "kindling1"
-mysql_password = "Kindling2025!"
+mysql_password = ""
 mysql_host = "192.168.88.193"
 mysql_port = 3306
 mysql_db = "kindling1"
@@ -41,9 +41,9 @@ token_url = "https://accounts.iqmetrix.net/v1/oauth2/token"
 auth_payload = {
     "grant_type": "password",
     "client_id": "Kindling.SelfIntegration",
-    "client_secret": "58gKwEAG3qNRnTyetsSnefzu",
+    "client_secret": "",
     "username": "SelfIntegration.COVA.APIUser.Kindling",
-    "password": "Kindling2024!",
+    "password": "",
 }
 
 base_url = "https://api.covasoft.net/dataplatform"
@@ -52,7 +52,7 @@ api_url = f"{base_url}/v1/Companies/{company_id}/DetailedProductData"
 
 location_ids = [
     "337565","369139","346750","352270","359751",
-    "377354","377353","377352","384462"
+    "377354","377353","377352","384462","396146"
 ]
 
 location_mapping = {
@@ -62,7 +62,7 @@ location_mapping = {
     "337565": "Hamilton",
     "352270": "Toronto North (Leaside)",
     "377353": "Oshawa",
-    "377354": "Burlington",
+    "396146": "Mountainside",
     "377352": "Toronto East (Beaches)",
     "384462": "Brampton"
 }
