@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 # ---------- MySQL Configuration ----------
 mysql_user = "kindling1"
-mysql_password = ""
+mysql_password = "Kindling2025!"
 mysql_host = "192.168.88.193"
 mysql_port = 3306
 mysql_db = "kindling1"
@@ -41,9 +41,9 @@ token_url = "https://accounts.iqmetrix.net/v1/oauth2/token"
 auth_payload = {
     "grant_type": "password",
     "client_id": "Kindling.SelfIntegration",
-    "client_secret": "",
+    "client_secret": "58gKwEAG3qNRnTyetsSnefzu",
     "username": "SelfIntegration.COVA.APIUser.Kindling",
-    "password": "",
+    "password": "Kindling2024!",
 }
 
 base_url = "https://api.covasoft.net/dataplatform"
@@ -110,16 +110,12 @@ while True:
                     break
 
                 for product in products:
-                    # Main product fields (default NA)
                     product_name = product.get("Name", "NA")
                     sku = product.get("CatalogSku", "NA")
                     classification = product.get("ClassificationName", "NA")
                     unit_type = product.get("UnitType", "NA")
 
-                    # Supplier SKUs list
-                    supplier_list = product.get("SupplierSkus") or [{"SKU": "NA", "Supplier": "NA"}]
-
-                    # Availability list
+                    supplier_list = product.get("SupplierSkus") or []
                     availability_list = product.get("Availability") or [{}]
 
                     for av in availability_list:
@@ -128,8 +124,11 @@ while True:
                         unit_cost = av.get("UnitCost") or 0
 
                         for s in supplier_list:
-                            supplier_sku = s.get("SKU", "NA")
-                            supplier_name = s.get("Supplier", "NA")
+                            raw_sku = s.get("SKU", "NA")
+
+                            # DO NOT SPLIT OR JOIN — preserve exact format
+                            supplier_sku = str(raw_sku).strip()
+                            supplier_name = str(s.get("Supplier", "NA")).strip()
 
                             all_products.append({
                                 "snapshot_date": datetime.now().date(),
@@ -137,16 +136,15 @@ while True:
                                 "product": product_name,
                                 "classification": classification,
                                 "sku": sku,
-                                "in_stock_qty": qty,
                                 "unit_type": unit_type,
-                                "in_stock_cost": qty * unit_cost,
-                                "avg_unit_cost_in_stock": unit_cost,
                                 "supplier": supplier_name,
-                                "supplier_sku": supplier_sku
+                                "supplier_sku": supplier_sku,
+                                "in_stock_qty": qty,
+                                "in_stock_cost": qty * unit_cost
                             })
 
                 skip += page_size
-                print("Fetched records:", skip)
+                print(f"{location_name} fetched: {skip}")
 
                 if len(all_products) >= max_records:
                     break
@@ -154,43 +152,45 @@ while True:
         # ---------- Save to MySQL ----------
         if all_products:
             df = pd.DataFrame(all_products)
-        
-            # ---------- Aggregation ----------
+
+            # ---------- FULL GRANULAR AGGREGATION ----------
             agg_df = (
-                df.groupby(["snapshot_date", "location", "product"], as_index=False)
+                df.groupby(
+                    ["snapshot_date", "location", "product", "supplier", "supplier_sku"],
+                    as_index=False
+                )
                 .agg({
                     "classification": "first",
                     "sku": "first",
                     "unit_type": "first",
-                    "supplier": "first",
-                    "supplier_sku": "first",
                     "in_stock_qty": "sum",
                     "in_stock_cost": "sum"
                 })
             )
-        
+
             # ---------- Weighted Avg Cost ----------
             agg_df["avg_unit_cost_in_stock"] = (
                 agg_df["in_stock_cost"] / agg_df["in_stock_qty"]
             ).replace([float("inf"), -float("inf")], 0).fillna(0)
-        
+
             # ---------- Save ----------
             safe_to_sql(agg_df, mysql_table)
-        
-            print(f"{datetime.now()} - Saved {len(agg_df)} aggregated rows")
-        
+
+            print(f"{datetime.now()} - Saved {len(agg_df)} rows (FULL SKU GRANULARITY)")
+
         else:
             print(f"{datetime.now()} - No data retrieved")
-            
+
     except Exception as e:
         print("Pipeline error:", e)
         engine.dispose()
 
-    # ---------- Sleep Until Next 6 AM EST ----------
+    # ---------- Sleep Until Next Run ----------
     now = datetime.now(ZoneInfo("America/New_York"))
     next_run = now.replace(hour=12, minute=15, second=0, microsecond=0)
     if now >= next_run:
         next_run += timedelta(days=1)
+
     sleep_seconds = (next_run - now).total_seconds()
-    print(f"Sleeping {sleep_seconds/3600:.2f} hours until next run\n")
+    print(f"Sleeping {sleep_seconds/3600:.2f} hours\n")
     time.sleep(sleep_seconds)
